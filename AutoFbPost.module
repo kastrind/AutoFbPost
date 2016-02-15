@@ -1,0 +1,291 @@
+<?php
+require_once __DIR__ . '/Facebook/autoload.php';
+session_start();
+
+/**
+ * Automatic post on Facebook when ProcessWire page is saved
+ *
+ * @author Dimitris Kastrinakis
+ *
+ */
+class AutoFbPost extends WireData implements Module, ConfigurableModule {
+
+  
+  public function __construct() {
+    
+    $this->app_id = '';
+    $this->app_secret = '';
+    $this->page_id = '';
+    $this->templates_csv = '';
+    $this->name_field = '';
+    $this->message_field = '';
+    $this->description_field = '';
+    $this->picture_field = '';
+    $this->active_checkbox = '';
+    $this->fb = null;
+    
+  }
+  
+  
+  /**
+   * Module info
+   */
+  public static function getModuleInfo() {
+    
+    return array(
+            'title'    => 'Facebook Post on Page Save',
+            'version'  => 100,
+            'summary'  => 'Automatic post on Facebook when page is saved',
+            'singular' => true,
+            'autoload' => true
+            );
+    
+  }
+  
+  
+  /**
+   * Module initialization; adds the hook method, creates FB object and attempts to get an access token
+   */
+  public function init() {
+    
+    if (!$this->app_id || !$this->app_secret) {
+      $this->error(get_class($this).": please provide your Facebook app ID and app secret.");
+      return;
+    }
+    
+    //execute method to post on FB after page save
+    $this->pages->addHookAfter('save', $this, 'postFB');
+    
+    $this->fb = new Facebook\Facebook([
+        'app_id' => $this->app_id,
+        'app_secret' => $this->app_secret,
+        'default_graph_version' => 'v2.5',
+        'allowSignedRequest' => false, // optional but should be set to false for non-canvas apps
+    ]);
+    
+    //wire('session')->remove('fbat');
+    
+    //if no access token exists, log in to get one
+    if (!wire('session')->fbat) {
+      
+      $helper = $this->fb->getRedirectLoginHelper();
+      
+      try {
+        $accessToken = $helper->getAccessToken();
+      } catch(Facebook\Exceptions\FacebookResponseException $e) {
+        // When Graph returns an error
+        $this->error(get_class($this).": Graph returned an error: ".$e->getMessage());
+        return;
+      } catch(Facebook\Exceptions\FacebookSDKException $e) {
+        // When validation fails or other local issues
+        $this->error(get_class($this).": Facebook SDK returned an error: " . $e->getMessage());
+        return;
+      }
+       
+      if (!isset($accessToken)) {
+        //$this->error(get_class($this).": no OAuth data could be obtained from the signed request. User has not authorized your app yet.");
+        return;
+      }else {wire('session')->fbat = $accessToken;}
+      
+    }
+    
+  }
+  
+  
+  /**
+   * Declares some input fields for module configuration
+   * @param array $data
+   */
+  public static function getModuleConfigInputfields(array $data) {
+    
+    $inputfields = new InputfieldWrapper();
+    
+    //ask for FB app id
+    $field = wire('modules')->get('InputfieldText');
+    $field->name = 'app_id';
+    $field->label = "FB app ID";
+    $field->description = "The ID of the app created at Facebook for developers";
+    $field->columnWidth = '33%';
+    $field->required = 1;
+    if(isset($data['app_id'])) $field->value = $data['app_id'];
+    $inputfields->add($field);
+    
+    //ask for FB app secret
+    $field = wire('modules')->get('InputfieldText');
+    $field->name = 'app_secret';
+    $field->label = "FB app secret";
+    $field->description = "The secret of the app created at Facebook for developers";
+    $field->required = 1;
+    $field->columnWidth = '34%';
+    if(isset($data['app_secret'])) $field->value = $data['app_secret'];
+    $inputfields->add($field);
+    
+    //ask for the FB page id that will post
+    $field = wire('modules')->get('InputfieldText');
+    $field->name = 'page_id';
+    $field->label = "FB page ID";
+    $field->description = "The page that will post the content; leave empty for user posts";
+    $field->columnWidth = '33%';
+    if(isset($data['page_id'])) $field->value = $data['page_id'];
+    $inputfields->add($field);
+    
+    //ask for templates the pages with these shall post
+    $field = wire('modules')->get('InputfieldText');
+    $field->name = 'templates_csv';
+    $field->label = "Active for templates";
+    $field->description = "Only pages with the following templates (comma separated) shall post on saves";
+    $field->columnWidth = '20%';
+    if(isset($data['templates_csv'])) $field->value = $data['templates_csv'];
+    $inputfields->add($field);
+    
+    //ask for checkbox name of the checkbox that will not allow post if inactive
+    $field = wire('modules')->get('InputfieldText');
+    $field->name = 'active_checkbox';
+    $field->label = "On/off checkbox";
+    $field->description = "Name of the checkbox that will not allow post if checked";
+    $field->columnWidth = '16%';
+    if(isset($data['active_checkbox'])) $field->value = $data['active_checkbox'];
+    $inputfields->add($field);
+    
+    //ask for field name containing name of FB post
+    $field = wire('modules')->get('InputfieldText');
+    $field->name = 'name_field';
+    $field->label = "Field name for content";
+    $field->description = "Name of the field that will contain the name of the FB post";
+    $field->columnWidth = '16%';
+    if(isset($data['name_field'])) $field->value = $data['name_field'];
+    $inputfields->add($field);
+    
+    //ask for field name containing message of FB post
+    $field = wire('modules')->get('InputfieldText');
+    $field->name = 'message_field';
+    $field->label = "Field name for message";
+    $field->description = "Name of the field that will contain the message of the FB post";
+    $field->columnWidth = '16%';
+    if(isset($data['message_field'])) $field->value = $data['message_field'];
+    $inputfields->add($field);
+    
+    //ask for field name containing description of FB post
+    $field = wire('modules')->get('InputfieldText');
+    $field->name = 'description_field';
+    $field->label = "Field name for description";
+    $field->description = "Name of the field that will contain the description of the FB post";
+    $field->columnWidth = '16%';
+    if(isset($data['description_field'])) $field->value = $data['description_field'];
+    $inputfields->add($field);
+    
+    //ask for field name containing picture of FB post
+    $field = wire('modules')->get('InputfieldText');
+    $field->name = 'picture_field';
+    $field->label = "Field name for images";
+    $field->description = "Name of the field that will contain the picture of the FB post";
+    $field->columnWidth = '16%';
+    if(isset($data['picture_field'])) $field->value = $data['picture_field'];
+    $inputfields->add($field);
+    
+    return $inputfields;
+    
+  }
+  
+  
+  /**
+   * The hooked method that attempts a post on Facebook after the Processwire page is saved.
+   * @param unknown $event
+   */
+  public function postFB($event) {
+    
+    $page = $event->arguments[0];
+    
+    //post on FB will happen only if checkbox is not checked, if any
+    if (strlen($this->active_checkbox) AND $page->{$this->active_checkbox}) return;
+    
+    $accepted_templates = str_replace(", ", ",", $this->templates_csv);
+    $templates_ar = explode(',', $accepted_templates);
+    
+    //post on FB will happen only for the declared templates
+    if (strlen($this->templates_csv)>0 AND !in_array($page->template, $templates_ar)) return;
+    
+    //if access token has not been retrieved
+    if (!wire('session')->fbat) {
+      
+      //Use one of the helper classes to get a Facebook\Authentication\AccessToken entity.
+      $helper = $this->fb->getRedirectLoginHelper();
+      
+      $return_url = (wire('config')->https) ? "https://" : "http://";
+      $return_url .= wire('config')->httpHost.wire('config')->urls->admin;
+      $permissions = ['publish_actions', 'manage_pages', 'publish_pages', 'pages_show_list']; //optional
+      $loginUrl = $helper->getLoginUrl($return_url.'page/edit/?id='.$page->id, $permissions);
+      
+      $this->error(get_class($this).": post failed; click <a href=\"".$loginUrl."\">here</a> to log in with Facebook.", Notice::allowMarkup);
+    
+    //proceed to post as a user or page
+    }else {
+       
+      try {
+        
+        // Get the Facebook\GraphNodes\GraphUser object for the current user.
+        // If you provided a 'default_access_token', the '{access-token}' is optional.
+        $response = $this->fb->get('/me', wire('session')->fbat->getValue());
+        $me = $response->getGraphUser();
+        
+        //the data of the link to post
+        $linkData = [
+            'link' => $page->httpUrl,
+        ];
+        if (strlen($this->name_field))        $linkData["name"]        = $page->{$this->name_field}->getDefaultValue();
+        if (strlen($this->message_field))     $linkData["message"]     = $page->{$this->message_field}->getDefaultValue();
+        if (strlen($this->description_field)) $linkData["description"] = $page->{$this->description_field}->getDefaultValue();
+        if (strlen($this->picture_field))     {
+          if (count($page->{$this->picture_field})) {
+            $linkData["picture"] = wire('config')->httpHost.$page->{$this->picture_field}->first()->url;
+          }
+        }
+        
+        //actual post of the link by FB page
+        if (strlen($this->page_id)) {
+          
+          $response_a = $this->fb->get('/me/accounts/', wire('session')->fbat->getValue());
+          $data = $response_a->getDecodedBody()['data'];
+          $page_not_found = true;
+          if (count($data)) {
+            //find the desired page and use its access token to post
+            foreach($data as $entry) {
+              if ($entry['id'] == $this->page_id) {
+                $page_access_token = $entry['access_token'];
+                $response_b = $this->fb->post("/$this->page_id/feed", $linkData, $page_access_token);
+                $page_not_found = false;
+                $page_name = $entry['name'];
+              }
+            }
+          }
+          if ($page_not_found) $this->error(get_class($this).": post failed; page not found.");
+          else {
+            $graphnode = $response_b->getGraphNode();
+            $this->message(get_class($this).": logged in as {$page_name} and posted with id: {$graphnode['id']}");
+          }
+          
+        //actual post of the link by FB user
+        }else {
+          $response_a = $this->fb->post('/me/feed', $linkData, wire('session')->fbat->getValue());
+          $graphnode = $response_a->getGraphNode();
+          $this->message(get_class($this).": logged in as  {$me->getName()} and posted with id: ".$graphnode['id']);
+        }
+        
+      } catch(Facebook\Exceptions\FacebookResponseException $e) {
+        // When Graph returns an error
+        $this->error(get_class($this).": post failed; Graph returned an error: ".$e->getMessage());
+        return;
+      } catch(Facebook\Exceptions\FacebookSDKException $e) {
+        // When validation fails or other local issues
+        $this->error(get_class($this).": post failed; Facebook SDK returned an error: ".$e->getMessage());
+        return;
+      }
+    
+    }
+    
+  }
+  
+  
+}
+
+?>
