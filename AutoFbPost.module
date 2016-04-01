@@ -195,6 +195,9 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
   public function postFB($event) {
     
     $page = $event->arguments[0];
+	
+	//post on FB will happen only if page is published
+    if ($page->is(Page::statusUnpublished)) return;
     
     //post on FB will happen only if checkbox is not checked, if any
     if (strlen($this->active_checkbox) AND $page->{$this->active_checkbox}) return;
