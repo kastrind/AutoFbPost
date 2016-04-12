@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . '/fbphpsdk/src/Facebook/autoload.php';
-session_start();
 
 /**
  * Automatic post on Facebook when ProcessWire page is saved
