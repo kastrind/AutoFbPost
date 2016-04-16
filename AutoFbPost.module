@@ -46,11 +46,10 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
    * Module initialization; adds the hook method, creates FB object and attempts to get an access token
    */
   public function init() {
+	  
+	if (!wire('user')->isLoggedin()) return;
     
-    if (!$this->app_id || !$this->app_secret) {
-      $this->error(get_class($this).": please provide your Facebook app ID and app secret.");
-      return;
-    }
+    if (!$this->app_id || !$this->app_secret) return;
     
     //execute method to post on FB after page save
     $this->pages->addHookAfter('save', $this, 'postFB');
@@ -186,6 +185,13 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
     
   }
   
+  /**
+   * Is the given field Multilingual?
+   * @returns boolean
+   */
+  public function isMultiLingual($field) {
+	  return (strrpos($field->type, 'Language') == strlen($field->type) - strlen('Language'));
+  }
   
   /**
    * The hooked method that attempts a post on Facebook after the Processwire page is saved.
@@ -234,10 +240,24 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
         $linkData = [
             'link' => $page->httpUrl,
         ];
-        if (strlen($this->name_field))        $linkData["name"]        = $page->{$this->name_field}->getDefaultValue();
-        if (strlen($this->message_field))     $linkData["message"]     = $page->{$this->message_field}->getDefaultValue();
-        if (strlen($this->description_field)) $linkData["description"] = $page->{$this->description_field}->getDefaultValue();
-        if (strlen($this->picture_field))     {
+		
+		//assign any field values to the post data
+        if (strlen($this->name_field) && $page->{$this->name_field}) {
+			$linkData["name"] = $this->isMultiLingual($page->fields->get($this->name_field)) ?
+								$page->{$this->name_field}->getDefaultValue() : $page->{$this->name_field};
+			$linkData["name"] = strip_tags($linkData["name"]);
+		}
+        if (strlen($this->message_field) && $page->{$this->message_field}) {
+			$linkData["message"] = $this->isMultiLingual($page->fields->get($this->message_field)) ?
+								$page->{$this->message_field}->getDefaultValue() : $page->{$this->message_field};
+			$linkData["message"] = strip_tags($linkData["message"]);
+		}     
+        if (strlen($this->description_field) && $page->{$this->description_field}) {
+			$linkData["description"] = $this->isMultiLingual($page->fields->get($this->description_field)) ?
+								$page->{$this->description_field}->getDefaultValue() : $page->{$this->description_field};
+			$linkData["description"] = strip_tags($linkData["description"]);	
+		}
+        if (strlen($this->picture_field)     && $page->{$this->picture_field})     {
           if (count($page->{$this->picture_field})) {
             $linkData["picture"] = wire('config')->httpHost.$page->{$this->picture_field}->first()->url;
           }
