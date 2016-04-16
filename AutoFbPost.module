@@ -61,10 +61,10 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
         'allowSignedRequest' => false, // optional but should be set to false for non-canvas apps
     ]);
     
-    //wire('session')->remove('fbat');
+    //$this->session->remove('fbat');
     
     //if no access token exists, log in to get one
-    if (!wire('session')->fbat) {
+    if (!$this->session->fbat) {
       
       $helper = $this->fb->getRedirectLoginHelper();
       
@@ -83,7 +83,7 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
       if (!isset($accessToken)) {
         //$this->error(get_class($this).": no OAuth data could be obtained from the signed request. User has not authorized your app yet.");
         return;
-      }else {wire('session')->fbat = $accessToken;}
+      }else {$this->session->fbat = $accessToken;}
       
     }
     
@@ -214,7 +214,7 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
     if (strlen($this->templates_csv)>0 AND !in_array($page->template, $templates_ar)) return;
     
     //if access token has not been retrieved
-    if (!wire('session')->fbat) {
+    if (!$this->session->fbat) {
       
       //Use one of the helper classes to get a Facebook\Authentication\AccessToken entity.
       $helper = $this->fb->getRedirectLoginHelper();
@@ -233,7 +233,7 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
         
         // Get the Facebook\GraphNodes\GraphUser object for the current user.
         // If you provided a 'default_access_token', the '{access-token}' is optional.
-        $response = $this->fb->get('/me', wire('session')->fbat->getValue());
+        $response = $this->fb->get('/me', $this->session->fbat->getValue());
         $me = $response->getGraphUser();
         
         //the data of the link to post
@@ -266,7 +266,7 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
         //actual post of the link by FB page
         if (strlen($this->page_id)) {
           
-          $response_a = $this->fb->get('/me/accounts/', wire('session')->fbat->getValue());
+          $response_a = $this->fb->get('/me/accounts/', $this->session->fbat->getValue());
           $data = $response_a->getDecodedBody()['data'];
           $page_not_found = true;
           if (count($data)) {
@@ -288,7 +288,7 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
           
         //actual post of the link by FB user
         }else {
-          $response_a = $this->fb->post('/me/feed', $linkData, wire('session')->fbat->getValue());
+          $response_a = $this->fb->post('/me/feed', $linkData, $this->session->fbat->getValue());
           $graphnode = $response_a->getGraphNode();
           $this->message(get_class($this).": logged in as  {$me->getName()} and posted with id: ".$graphnode['id']);
         }
