@@ -1,0 +1,42 @@
+{
+    "name": "facebook/graph-sdk",
+    "description": "Facebook SDK for PHP",
+    "keywords": ["facebook", "sdk"],
+    "type": "library",
+    "homepage": "https://github.com/facebook/php-graph-sdk",
+    "license": "Facebook Platform",
+    "authors": [
+        {
+            "name": "Facebook",
+            "homepage": "https://github.com/facebook/php-graph-sdk/contributors"
+        }
+    ],
+    "config": {
+        "sort-packages": true
+    },
+    "require": {
+        "php": "^7.1"
+    },
+    "require-dev": {
+        "guzzlehttp/guzzle": "^5.3.1",
+        "phpunit/phpunit": "^6.2"
+    },
+    "suggest": {
+        "guzzlehttp/guzzle": "Allows for implementation of the Guzzle HTTP client"
+    },
+    "autoload": {
+        "psr-4": {
+            "Facebook\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Facebook\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "6.x-dev"
+        }
+    }
+}
