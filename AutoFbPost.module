@@ -31,7 +31,7 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
     
     return array(
             'title'    => 'Facebook Post on Page Save',
-            'version'  => 102,
+            'version'  => 104,
             'summary'  => 'Automatic post on Facebook when a Processwire page is saved',
             'singular' => true,
             'autoload' => true
