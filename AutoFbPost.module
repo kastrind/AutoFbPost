@@ -200,9 +200,9 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
       $helper = $this->fb->getRedirectLoginHelper();
       
       $return_url = (wire('config')->https) ? "https://" : "http://";
-      $return_url .= wire('config')->httpHost.wire('config')->urls->admin;
+      $return_url .= wire('config')->httpHost.wire('config')->urls->admin."page/";
       $permissions = ['publish_actions', 'manage_pages', 'publish_pages', 'pages_show_list']; //optional
-      $loginUrl = $helper->getLoginUrl($return_url.'page/edit/?id='.$page->id, $permissions);
+	  $loginUrl = $helper->getLoginUrl($return_url, $permissions);
       
       $this->error(get_class($this).": post failed; click <a href=\"".$loginUrl."\">here</a> to log in with Facebook.", Notice::allowMarkup);
     
