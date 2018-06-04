@@ -5,7 +5,7 @@ To work, this module requires a Facebook app ID and secret.
 
 If a Facebook page ID is also provided, posts will be made on behalf of that Facebook page.
 
-**IMPORTANT:** to login with strict mode for redirect URIs, go to login settings in facebook for developers and add *http://www.example.com/processwire/page/* to your list of allowed redirect URIs.
+**IMPORTANT:** to login with strict mode for redirect URIs, go to login settings in facebook for developers and add *"http://www.example.com/processwire/page/"* to your list of allowed redirect URIs.
 
 This module provides additional control over the posts:
 - Templates: posts can take place only for pages with the defined templates 
