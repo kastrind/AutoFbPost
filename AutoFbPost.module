@@ -9,9 +9,9 @@ require_once __DIR__ . '/php-graph-sdk/src/Facebook/autoload.php';
  */
 class AutoFbPost extends WireData implements Module, ConfigurableModule {
 
-  
+
   public function __construct() {
-    
+
     $this->app_id = '';
     $this->app_secret = '';
     $this->page_id = '';
@@ -20,52 +20,52 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
     $this->picture_field = '';
     $this->active_checkbox = '';
     $this->fb = null;
-    
+
   }
-  
-  
+
+
   /**
    * Module info
    */
   public static function getModuleInfo() {
-    
+
     return array(
-            'title'    => 'Facebook Post on Page Save',
-            'version'  => 104,
-            'summary'  => 'Automatic post on Facebook when a Processwire page is saved',
-            'singular' => true,
-            'autoload' => true
-            );
-    
+             'title'    => 'Facebook Post on Page Save',
+             'version'  => 104,
+             'summary'  => 'Automatic post on Facebook when a Processwire page is saved',
+             'singular' => true,
+             'autoload' => true
+           );
+
   }
-  
-  
+
+
   /**
    * Module initialization; adds the hook method, creates FB object and attempts to get an access token
    */
   public function init() {
-	  
-	if (!wire('user')->isLoggedin()) return;
-    
+
+    if (!wire('user')->isLoggedin()) return;
+
     if (!$this->app_id || !$this->app_secret) return;
-    
+
     //execute method to post on FB after page save
     $this->pages->addHookAfter('save', $this, 'postFB');
-    
+
     $this->fb = new Facebook\Facebook([
-        'app_id' => $this->app_id,
-        'app_secret' => $this->app_secret,
-        'default_graph_version' => 'v2.10',
-        'allowSignedRequest' => false, // optional but should be set to false for non-canvas apps
+      'app_id' => $this->app_id,
+      'app_secret' => $this->app_secret,
+      'default_graph_version' => 'v2.10',
+      'allowSignedRequest' => false, // optional but should be set to false for non-canvas apps
     ]);
-    
+
     //$this->session->remove('fbat');
-    
+
     //if no access token exists, log in to get one
     if (!$this->session->fbat) {
-      
+
       $helper = $this->fb->getRedirectLoginHelper();
-      
+
       try {
         $accessToken = $helper->getAccessToken();
       } catch(Facebook\Exceptions\FacebookResponseException $e) {
@@ -82,20 +82,20 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
         //$this->error(get_class($this).": no OAuth data could be obtained from the signed request. User has not authorized your app yet.");
         return;
       }else {$this->session->fbat = $accessToken;}
-      
+
     }
-    
+
   }
-  
-  
+
+
   /**
    * Declares some input fields for module configuration
    * @param array $data
    */
   public static function getModuleConfigInputfields(array $data) {
-    
+
     $inputfields = new InputfieldWrapper();
-    
+
     //ask for FB app id
     $field = wire('modules')->get('InputfieldText');
     $field->name = 'app_id';
@@ -105,7 +105,7 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
     $field->required = 1;
     if(isset($data['app_id'])) $field->value = $data['app_id'];
     $inputfields->add($field);
-    
+
     //ask for FB app secret
     $field = wire('modules')->get('InputfieldText');
     $field->name = 'app_secret';
@@ -115,16 +115,17 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
     $field->columnWidth = '34%';
     if(isset($data['app_secret'])) $field->value = $data['app_secret'];
     $inputfields->add($field);
-    
+
     //ask for the FB page id that will post
     $field = wire('modules')->get('InputfieldText');
     $field->name = 'page_id';
     $field->label = "FB page ID";
-    $field->description = "The Facebook page that will post the content; leave empty for posting as a Facebook user.";
+    $field->description = "The Facebook page where the content will be posted.";
     $field->columnWidth = '33%';
+    $field->required = 1;
     if(isset($data['page_id'])) $field->value = $data['page_id'];
     $inputfields->add($field);
-    
+
     //ask for templates the pages with these shall post
     $field = wire('modules')->get('InputfieldText');
     $field->name = 'templates_csv';
@@ -133,7 +134,7 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
     $field->columnWidth = '40%';
     if(isset($data['templates_csv'])) $field->value = $data['templates_csv'];
     $inputfields->add($field);
-    
+
     //ask for checkbox name of the checkbox that will not allow post if inactive
     $field = wire('modules')->get('InputfieldText');
     $field->name = 'active_checkbox';
@@ -142,7 +143,7 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
     $field->columnWidth = '20%';
     if(isset($data['active_checkbox'])) $field->value = $data['active_checkbox'];
     $inputfields->add($field);
-    
+
     //ask for field name containing message of FB post
     $field = wire('modules')->get('InputfieldText');
     $field->name = 'message_field';
@@ -151,7 +152,7 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
     $field->columnWidth = '20%';
     if(isset($data['message_field'])) $field->value = $data['message_field'];
     $inputfields->add($field);
-    
+
     //ask for field name containing picture of FB post
     $field = wire('modules')->get('InputfieldText');
     $field->name = 'picture_field';
@@ -160,82 +161,90 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
     $field->columnWidth = '20%';
     if(isset($data['picture_field'])) $field->value = $data['picture_field'];
     $inputfields->add($field);
-    
+
     return $inputfields;
-    
+
   }
-  
+
+
   /**
    * Is the given field Multilingual?
    * @returns boolean
    */
   public function isMultiLingual($field) {
-	  return (strrpos($field->type, 'Language') == strlen($field->type) - strlen('Language'));
+
+    return (strrpos($field->type, 'Language') == strlen($field->type) - strlen('Language'));
+
   }
-  
+
+
   /**
    * The hooked method that attempts a post on Facebook after the Processwire page is saved.
    * @param unknown $event
    */
   public function postFB($event) {
-    
+
     $page = $event->arguments[0];
-	
-	//post on FB will happen only if page is published
+
+    //post on FB will happen only if page is published
     if ($page->is(Page::statusUnpublished)) return;
-    
+
     //post on FB will happen only if checkbox is not checked, if any
     if (strlen($this->active_checkbox) AND $page->{$this->active_checkbox}) return;
-    
+
     $accepted_templates = str_replace(", ", ",", $this->templates_csv);
     $templates_ar = explode(',', $accepted_templates);
-    
+
     //post on FB will happen only for the declared templates
     if (strlen($this->templates_csv)>0 AND !in_array($page->template, $templates_ar)) return;
-    
+
     //if access token has not been retrieved
     if (!$this->session->fbat) {
-      
+
       //Use one of the helper classes to get a Facebook\Authentication\AccessToken entity.
       $helper = $this->fb->getRedirectLoginHelper();
-      
+
       $return_url = (wire('config')->https) ? "https://" : "http://";
       $return_url .= wire('config')->httpHost.wire('config')->urls->admin."page/";
-      $permissions = ['publish_actions', 'manage_pages', 'publish_pages', 'pages_show_list']; //optional
-	  $loginUrl = $helper->getLoginUrl($return_url, $permissions);
-      
+      $permissions = ['publish_to_groups', 'manage_pages', 'publish_pages', 'pages_show_list']; //optional
+      $loginUrl = $helper->getLoginUrl($return_url, $permissions);
+
       $this->error(get_class($this).": post failed; click <a href=\"".$loginUrl."\">here</a> to log in with Facebook.", Notice::allowMarkup);
-    
-    //proceed to post as a user or page
+
+    //proceed to post
     }else {
-       
+
       try {
-        
+
         // Get the Facebook\GraphNodes\GraphUser object for the current user.
         // If you provided a 'default_access_token', the '{access-token}' is optional.
         $response = $this->fb->get('/me', $this->session->fbat->getValue());
         $me = $response->getGraphUser();
-        
+
         //the data of the link to post
         $linkData = [
             'link' => $page->httpUrl,
         ];
-		
-		//assign any field values to the post data
+
+        $post_has_photo = false;
+
+        //assign any field values to the post data
         if (strlen($this->message_field) && $page->{$this->message_field}) {
-			$linkData["message"] = $this->isMultiLingual($page->fields->get($this->message_field)) ?
-								$page->{$this->message_field}->getDefaultValue() : $page->{$this->message_field};
-			$linkData["message"] = strip_tags($linkData["message"]);
-		}
+            $linkData["message"] = $this->isMultiLingual($page->fields->get($this->message_field)) ?
+            $page->{$this->message_field}->getDefaultValue() : $page->{$this->message_field};
+            $linkData["message"] = strip_tags($linkData["message"]);
+        }
         if (strlen($this->picture_field) && $page->{$this->picture_field}) {
           if (count($page->{$this->picture_field})) {
-            $linkData["source"] = $page->{$this->picture_field}->first()->httpUrl;
+            $post_has_photo = true;
+            $linkData["url"] = $page->{$this->picture_field}->first()->httpUrl;
+            $linkData["caption"] = $linkData["message"] ."\n". $linkData["link"];
+            unset($linkData["message"]);
+            unset($linkData["link"]);
           }
         }
-        
-        //posting the link as a FB page
-        if (strlen($this->page_id)) {
-          
+
+          //post the link as a FB page on a FB page
           $response_a = $this->fb->get('/me/accounts/', $this->session->fbat->getValue());
           $data = $response_a->getDecodedBody()['data'];
           $page_not_found = true;
@@ -244,7 +253,8 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
             foreach($data as $entry) {
               if ($entry['id'] == $this->page_id) {
                 $page_access_token = $entry['access_token'];
-                $response_b = $this->fb->post("/$this->page_id/feed", $linkData, $page_access_token);
+                $response_b = ($post_has_photo) ? $this->fb->post("/$this->page_id/photos", $linkData, $page_access_token)
+                : $this->fb->post("/$this->page_id/feed", $linkData, $page_access_token);
                 $page_not_found = false;
                 $page_name = $entry['name'];
               }
@@ -255,14 +265,7 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
             $graphnode = $response_b->getGraphNode();
             $this->message(get_class($this).": logged in as {$page_name} and posted with id: {$graphnode['id']}");
           }
-          
-        //posting the link as a FB user
-        }else {
-          $response_a = $this->fb->post('/me/feed', $linkData, $this->session->fbat->getValue());
-          $graphnode = $response_a->getGraphNode();
-          $this->message(get_class($this).": logged in as  {$me->getName()} and posted with id: ".$graphnode['id']);
-        }
-        
+
       } catch(Facebook\Exceptions\FacebookResponseException $e) {
         // When Graph returns an error
         $this->error(get_class($this).": post failed; Graph returned an error: ".$e->getMessage());
@@ -272,12 +275,11 @@ class AutoFbPost extends WireData implements Module, ConfigurableModule {
         $this->error(get_class($this).": post failed; Facebook SDK returned an error: ".$e->getMessage());
         return;
       }
-    
-    }
-    
-  }
-  
-  
-}
 
+    }
+
+  }
+
+
+}
 ?>
