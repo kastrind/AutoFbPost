@@ -1,7 +1,8 @@
 # AutoFbPost
-A Processwire module that posts on behalf of a Facebook page whenever a PW page is saved.
 
-To work, this module requires a Facebook app ID, secret and a Page ID.
+This Processwire module can publish content of a Processwire page on a Facebook page, triggered by saving the Processwire page.
+
+To set it up, configure the module with a Facebook app ID, secret and a Page ID. Following is additional configuration on Facebook for developers: 
 
 **Minimum Required Facebook App configuration:**
 - on Settings -> Basics,
