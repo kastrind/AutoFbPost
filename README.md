@@ -8,7 +8,7 @@ To set it up, configure the module with a Facebook app ID, secret and a Page ID.
 - on Settings -> Basics,
   - provide the App Domains,
   - provide the Site URL,
-- on Settings -> Advanced, set the API version to 2.10
+- on Settings -> Advanced, set the API version (has been tested up to v3.3),
 - add Product: Facebook Login,
 - on Facebook Login -> Settings,
   - set Client OAuth Login: Yes,
